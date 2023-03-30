@@ -1,8 +1,5 @@
 import React, {useCallback, useEffect, useState} from 'react';
 import BleManager, {
-  BleDisconnectPeripheralEvent,
-  BleManagerDidUpdateValueForCharacteristicEvent,
-  BleScanCallbackType,
   BleScanMatchMode,
   BleScanMode,
   Peripheral,
@@ -82,10 +79,11 @@ function App(): JSX.Element {
 
   const onDiscover = useCallback((peripheral: Peripheral) => {
     console.log(peripheral.id, peripheral.name);
-    setPeripherals(arr => [
-      ...arr.filter(x => x.id !== peripheral.id),
-      peripheral,
-    ].sort((a, b) => b.id.localeCompare(a.id)));
+    setPeripherals(arr =>
+      [...arr.filter(x => x.id !== peripheral.id), peripheral].sort((a, b) =>
+        b.id.localeCompare(a.id),
+      ),
+    );
   }, []);
 
   const startScan = useCallback(async () => {
@@ -191,9 +189,7 @@ function App(): JSX.Element {
               </Text>
             </View>
             <View>
-              <Text style={styles.peripheralId}>
-                {peripheral.id}
-              </Text>
+              <Text style={styles.peripheralId}>{peripheral.id}</Text>
             </View>
           </View>
         ))}

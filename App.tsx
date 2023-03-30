@@ -1,117 +1,186 @@
-/**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * @format
- */
-
-import React from 'react';
-import type {PropsWithChildren} from 'react';
+import React, {useCallback, useEffect, useState} from 'react';
 import {
-  SafeAreaView,
+  Button,
+  PermissionsAndroid,
+  Platform,
   ScrollView,
-  StatusBar,
   StyleSheet,
   Text,
-  useColorScheme,
+  TouchableOpacity,
   View,
 } from 'react-native';
+import RNBluetoothClassic from 'react-native-bluetooth-classic';
 
-import {
-  Colors,
-  DebugInstructions,
-  Header,
-  LearnMoreLinks,
-  ReloadInstructions,
-} from 'react-native/Libraries/NewAppScreen';
+function App(): JSX.Element {
+  const [bluetoothState, setBluetoothState] = useState<boolean>(false);
+  const [isScanning, setIsScanning] = useState<boolean>(false);
+  const [peripherals, setPeripherals] = useState([]);
+  const [started, setStarted] = useState<boolean>(false);
 
-type SectionProps = PropsWithChildren<{
-  title: string;
-}>;
+  const checkState = useCallback(async () => {
+    try {
+      const state = await RNBluetoothClassic.isBluetoothEnabled();
+      setBluetoothState(state);
+      console.debug(`BlueTooth State: ${state}`);
+    } catch (error) {
+      console.error('[BLUETOOTH::CHECK_STATE]', error);
+    }
+  }, []);
 
-function Section({children, title}: SectionProps): JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
+  const enableBluetooth = useCallback(async () => {
+    try {
+      await RNBluetoothClassic.requestBluetoothEnabled();
+      console.debug('Bluetooth enabled');
+    } catch (error) {
+      console.error('[BLUETOOTH::ENABLE]', error);
+    }
+  }, []);
+
+  const getBonded = useCallback(async () => {
+    try {
+      const result = await RNBluetoothClassic.getBondedDevices();
+      console.debug('Bonded devices:', result);
+    } catch (error) {
+      console.error('[BLUETOOTH::GET_BONDED]', error);
+    }
+  }, []);
+
+  const initBluetooth = useCallback(async () => {
+    try {
+      if (Platform.OS === 'android') {
+        if (Platform.Version >= 23) {
+          const checkResult = await PermissionsAndroid.requestMultiple([
+            PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION,
+            PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+          ]);
+          console.debug('checkResult', checkResult);
+        }
+        if (Platform.Version >= 31) {
+          const checkResult = await PermissionsAndroid.requestMultiple([
+            PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT,
+            PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
+          ]);
+          console.debug('checkResult', checkResult);
+        }
+      }
+      await checkState();
+      setStarted(true);
+      console.debug('BlueTooth module started');
+    } catch (error) {
+      console.error('[BLUETOOTH::INIT]', error);
+    }
+  }, [checkState]);
+
+  const startScan = useCallback(async () => {
+    if (!isScanning) {
+      setPeripherals([]);
+      setIsScanning(true);
+
+      console.debug('BlueTooth scan started');
+
+      const unpaired = await RNBluetoothClassic.startDiscovery();
+      unpaired.sort((a, b) => a.id.localeCompare(b.id));
+
+      setPeripherals(unpaired);
+      setIsScanning(false);
+      console.debug('BlueTooth scan stopped');
+    }
+  }, [isScanning]);
+
+  const pairDevice = useCallback(async address => {
+    const result = await RNBluetoothClassic.pairDevice(address);
+    console.log(result);
+  }, []);
+
+  useEffect(() => {
+    const subscriptions = [];
+    subscriptions.push(
+      RNBluetoothClassic.onStateChanged(event => {
+        setBluetoothState(event.enabled);
+      }),
+    );
+
+    return () => {
+      subscriptions.forEach(sub => sub.remove());
+    };
+  }, []);
+
+  if (!started) {
+    return (
+      <View style={styles.container}>
+        <Button onPress={initBluetooth} title="Start" />
+      </View>
+    );
+  }
+
+  if (!bluetoothState) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.row}>
+          <Button onPress={enableBluetooth} title="Enable BlueTooth" />
+        </View>
+      </View>
+    );
+  }
+
   return (
-    <View style={styles.sectionContainer}>
-      <Text
-        style={[
-          styles.sectionTitle,
-          {
-            color: isDarkMode ? Colors.white : Colors.black,
-          },
-        ]}>
-        {title}
-      </Text>
-      <Text
-        style={[
-          styles.sectionDescription,
-          {
-            color: isDarkMode ? Colors.light : Colors.dark,
-          },
-        ]}>
-        {children}
-      </Text>
+    <View style={styles.container}>
+      <View style={styles.row}>
+        <Text>BlueTooth State: {bluetoothState ? 'on' : 'off'}</Text>
+      </View>
+      <View style={styles.row}>
+        <Button
+          onPress={startScan}
+          title={isScanning ? 'Scanning...' : 'Start Scan'}
+        />
+      </View>
+      <View style={styles.row}>
+        <Text>Discovered Peripherals: {peripherals.length}</Text>
+      </View>
+      <ScrollView>
+        {peripherals.map(peripheral => (
+          <TouchableOpacity
+            key={peripheral.id}
+            onPress={() => pairDevice(peripheral.address)}
+            style={styles.row}>
+            <View>
+              <Text style={styles.peripheralName}>
+                {peripheral.name || peripheral.localName || ''}
+              </Text>
+            </View>
+            <View>
+              <Text style={styles.peripheralId}>{peripheral.id}</Text>
+            </View>
+            {peripheral.id === peripheral.address ? null : (
+              <View>
+                <Text style={styles.peripheralId}>
+                  Address: {peripheral.address}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+      <View style={styles.row}>
+        <Button onPress={getBonded} title="Get Bonded Devices" />
+      </View>
     </View>
   );
 }
 
-function App(): JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
-
-  const backgroundStyle = {
-    backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
-  };
-
-  return (
-    <SafeAreaView style={backgroundStyle}>
-      <StatusBar
-        barStyle={isDarkMode ? 'light-content' : 'dark-content'}
-        backgroundColor={backgroundStyle.backgroundColor}
-      />
-      <ScrollView
-        contentInsetAdjustmentBehavior="automatic"
-        style={backgroundStyle}>
-        <Header />
-        <View
-          style={{
-            backgroundColor: isDarkMode ? Colors.black : Colors.white,
-          }}>
-          <Section title="Step One">
-            Edit <Text style={styles.highlight}>App.tsx</Text> to change this
-            screen and then come back to see your edits.
-          </Section>
-          <Section title="See Your Changes">
-            <ReloadInstructions />
-          </Section>
-          <Section title="Debug">
-            <DebugInstructions />
-          </Section>
-          <Section title="Learn More">
-            Read the docs to discover what to do next:
-          </Section>
-          <LearnMoreLinks />
-        </View>
-      </ScrollView>
-    </SafeAreaView>
-  );
-}
-
 const styles = StyleSheet.create({
-  sectionContainer: {
-    marginTop: 32,
-    paddingHorizontal: 24,
+  container: {
+    padding: 10,
   },
-  sectionTitle: {
-    fontSize: 24,
-    fontWeight: '600',
+  peripheralId: {
+    color: '#cccccc',
+    fontSize: 12,
   },
-  sectionDescription: {
-    marginTop: 8,
-    fontSize: 18,
-    fontWeight: '400',
+  peripheralName: {
+    fontWeight: 'bold',
   },
-  highlight: {
-    fontWeight: '700',
+  row: {
+    marginBottom: 10,
   },
 });
 

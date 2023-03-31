@@ -40,14 +40,14 @@ function App(): JSX.Element {
     try {
       const result = await RNBluetoothClassic.getBondedDevices();
       const recorder = result.find(x => x.name === 'recorder');
-      const isConnected = await recorder.isConnected()
+      const isConnected = await recorder.isConnected();
       if (isConnected) {
         console.log('Connected!');
       } else {
         const connection = await recorder.connect({
-          CONNECTION_TYPE: 'binary'
+          CONNECTION_TYPE: 'binary',
         });
-        console.log(connect);
+        console.log(connection);
       }
     } catch (error) {
       console.error('[BLUETOOTH::GET_BONDED]', error);

@@ -134,19 +134,19 @@ function App(): JSX.Element {
 
   return (
     <View style={styles.container}>
-      <View style={styles.row}>
-        <Text>BlueTooth State: {bluetoothState ? 'on' : 'off'}</Text>
-      </View>
-      <View style={styles.row}>
-        <Button
-          onPress={startScan}
-          title={isScanning ? 'Scanning...' : 'Start Scan'}
-        />
-      </View>
-      <View style={styles.row}>
-        <Text>Discovered Peripherals: {peripherals.length}</Text>
-      </View>
       <ScrollView>
+        <View style={styles.row}>
+          <Text>BlueTooth State: {bluetoothState ? 'on' : 'off'}</Text>
+        </View>
+        <View style={styles.row}>
+          <Button
+            onPress={startScan}
+            title={isScanning ? 'Scanning...' : 'Start Scan'}
+          />
+        </View>
+        <View style={styles.row}>
+          <Text>Discovered Peripherals: {peripherals.length}</Text>
+        </View>
         {peripherals.map(peripheral => (
           <TouchableOpacity
             key={peripheral.id}
@@ -169,10 +169,10 @@ function App(): JSX.Element {
             )}
           </TouchableOpacity>
         ))}
+        <View style={styles.row}>
+          <Button onPress={getBonded} title="Get Bonded Devices" />
+        </View>
       </ScrollView>
-      <View style={styles.row}>
-        <Button onPress={getBonded} title="Get Bonded Devices" />
-      </View>
     </View>
   );
 }
